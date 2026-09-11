@@ -113,7 +113,6 @@ video.hidden { display: none; }
 .mode-chip { width: 36px; height: 36px; border-radius: 50%; background: transparent; color: #fff; font-size: 1.05rem; opacity: .55; }
 .mode-chip.is-active { background: rgba(255,255,255,.2); opacity: 1; }
 .stage[data-mode="image"] #opPill { display: none; }
-.hud-caption { color: #cfe0d8; font-size: .78rem; font-weight: 700; background: rgba(17,24,20,.55); padding: 7px 12px; border-radius: 999px; backdrop-filter: blur(8px); }
 .score-hud {
   margin-left: auto; display: flex; align-items: center; gap: 6px;
   padding: 7px 13px; border-radius: 999px; background: rgba(17,24,20,.55);

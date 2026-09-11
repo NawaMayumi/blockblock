@@ -11,7 +11,6 @@ const dropZone = document.querySelector('#dropZone');
 const loading = document.querySelector('#loading');
 const filename = document.querySelector('#filename');
 const hint = document.querySelector('#hint');
-const modeLabel = document.querySelector('#modeLabel');
 const modeImageButton = document.querySelector('#modeImageButton');
 const modeCameraButton = document.querySelector('#modeCameraButton');
 const opMultiplyButton = document.querySelector('#opMultiplyButton');
@@ -2491,7 +2490,6 @@ function setMode(newMode) {
   modeCameraButton.setAttribute('aria-selected', String(mode === 'camera'));
   imageToolbar.classList.toggle('hidden', mode !== 'image');
   cameraToolbar.classList.toggle('hidden', mode !== 'camera');
-  modeLabel.textContent = mode === 'image' ? 'Photo test mode' : 'Live camera mode';
   hint.textContent = mode === 'image'
     ? 'Red blocks are outlined in teal. You can also drag a different photo in here.'
     : 'Start the camera to detect red blocks and digit blocks in real time. Use the ×/+/− chip at the top to switch problem type.';
