@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="A prototype that uses the camera to read a multiplication built from blocks and check a number-block answer" />
+  <title>BlockBlock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="rotateHint" class="rotate-hint" aria-hidden="true">
+    <div class="rotate-icon" aria-hidden="true">📱↻</div>
+    <p>Turn your device sideways (landscape) — the camera view and block zones are designed for a wide screen.</p>
+  </div>
+
+  <div id="tutorialOverlay" class="tutorial-overlay hidden" aria-hidden="true">
+    <button id="tutorialSkipButton" type="button" class="tutorial-skip">Skip ✕</button>
+    <div class="tutorial-card">
+      <div class="tutorial-step" data-step="0">
+        <div class="tutorial-emoji" aria-hidden="true">👋🧊</div>
+        <h2>Hi! Let's play!</h2>
+        <p>Show your blocks to the camera to make math problems.</p>
+      </div>
+      <div class="tutorial-step" data-step="1" hidden>
+        <div class="tutorial-emoji tutorial-blocks-visual" aria-hidden="true">
+          <svg class="tutorial-block-icon" width="52" height="52" viewBox="0 0 52 52">
+            <rect x="3" y="3" width="46" height="46" rx="9" fill="#dc2626"/>
+            <circle cx="26" cy="26" r="7" fill="#ffd23f"/>
+          </svg>
+          <svg class="tutorial-block-icon" width="52" height="52" viewBox="0 0 52 52">
+            <rect x="3" y="3" width="46" height="46" rx="9" fill="#dc2626"/>
+            <rect x="12" y="12" width="28" height="28" rx="4" fill="#141414"/>
+            <text x="26" y="34" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="'Baloo 2',sans-serif">3</text>
+          </svg>
+        </div>
+        <h2>Where do blocks go?</h2>
+        <p>Put your <b>red blocks</b> in the <span class="tutorial-red">red box</span> to count.<br>Put your <b>number block</b> in the <span class="tutorial-black">black box</span>.</p>
+      </div>
+      <div class="tutorial-step" data-step="2" hidden>
+        <div class="tutorial-emoji" aria-hidden="true">💎🎉</div>
+        <h2>Get it right!</h2>
+        <p>Get it right and watch what happens!</p>
+      </div>
+      <div class="tutorial-dots" aria-hidden="true">
+        <span class="tutorial-dot is-active"></span>
+        <span class="tutorial-dot"></span>
+        <span class="tutorial-dot"></span>
+      </div>
+      <button id="tutorialNextButton" type="button" class="tutorial-next">Next</button>
+    </div>
+  </div>
+
+  <div id="stage" class="stage" data-mode="camera">
+    <div class="canvas-wrap" id="dropZone">
+      <canvas id="canvas" aria-label="Detection result"></canvas>
+      <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
+      <video id="video" playsinline muted class="hidden"></video>
+      <div id="loading" class="loading hidden">Getting ready…</div>
+      <div id="cameraMessage" class="camera-message hidden"></div>
+    </div>
+
+    <header class="hud hud-top">
+      <!-- modeCameraButton/modeImageButton (live camera vs. photo-test)
+           live in the settings drawer now — the app is basically always
+           camera mode, so that switch doesn't need a prominent top-level
+           control. This label is the only on-stage indicator of which one
+           is active. -->
+      <span id="modeLabel" class="hud-caption">Live camera mode</span>
+      <div id="opPill" class="mode-pill" role="tablist" aria-label="Choose operation">
+        <button id="opMultiplyButton" type="button" class="mode-chip is-active" role="tab" aria-selected="true" title="Multiplication">×</button>
+        <button id="opAddButton" type="button" class="mode-chip" role="tab" aria-selected="false" title="Addition">+</button>
+        <button id="opSubtractButton" type="button" class="mode-chip" role="tab" aria-selected="false" title="Subtraction">−</button>
+      </div>
+      <div id="scoreHud" class="score-hud hidden"><span aria-hidden="true">💎</span><span id="scoreValue">0</span></div>
+      <button id="settingsButton" type="button" class="icon-button" aria-label="Settings">⚙️</button>
+    </header>
+
+    <div id="mascot" class="mascot state-sleep" aria-hidden="true"><span id="mascotFace">💤</span></div>
+
+    <div class="hud hud-readout">
+      <div class="hud-pill equation-pill">
+        <span class="scan-ring-wrap">
+          <svg class="scan-ring" viewBox="0 0 44 44" aria-hidden="true">
+            <circle class="scan-ring-bg" cx="22" cy="22" r="18" />
+            <circle id="scanRingProgress" class="scan-ring-fg" cx="22" cy="22" r="18" />
+          </svg>
+          <span id="liveBadge" class="scan-ring-dot hidden">Reading…</span>
+        </span>
+        <div class="equation-text">
+          <strong id="count"></strong>
+          <span id="equation">Start the camera</span>
+        </div>
+      </div>
+      <p id="arrangement" class="hud-sub"></p>
+
+      <div id="cardHudWrap" class="hud-pill card-pill">
+        <span id="cardBadge" class="hud-dot hidden">Reading…</span>
+        <span class="card-label">Number</span>
+        <strong id="cardValue">–</strong>
+      </div>
+      <p id="cardDetail" class="hud-sub"></p>
+      <p id="cardFeedback" class="hud-feedback hidden"></p>
+    </div>
+
+    <p id="debugInfo" class="hint debug-info hidden"></p>
+    <p id="fontWarning" class="hud-warning hidden"></p>
+
+    <div id="cameraToolbar" class="toolbar">
+      <div id="startOverlay" class="start-overlay">
+        <p class="start-copy">Show your blocks and number block to the camera</p>
+        <button id="startCameraButton" type="button" class="shutter-button">📷 Start camera</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="drawerScrim" class="drawer-scrim"></div>
+  <aside id="settingsDrawer" class="drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <h2>Settings</h2>
+      <button id="closeSettingsButton" type="button" class="text-button">Close</button>
+    </div>
+
+    <p id="hint" class="hint">Show red blocks and your number block to the camera to read the equation and check the answer automatically. Use the ×/+/− chip at the top to switch problem type — addition and subtraction use two marked zones instead of a grid.</p>
+
+    <button id="showTutorialButton" type="button" class="secondary drawer-full-button">🎓 Show the tutorial again</button>
+
+    <section class="controls">
+      <div class="section-title"><h2>Camera</h2></div>
+      <label>
+        <span>Choose camera</span>
+        <select id="cameraSelect" class="camera-select hidden" aria-label="Choose camera"></select>
+      </label>
+      <div class="drawer-button-row" role="tablist" aria-label="Switch input mode">
+        <button id="modeCameraButton" type="button" class="secondary is-active" role="tab" aria-selected="true">📷 Live camera</button>
+        <button id="modeImageButton" type="button" class="secondary" role="tab" aria-selected="false">🖼️ Photo test</button>
+      </div>
+      <label class="switch-row">
+        <span>Light (helps in dim rooms)</span>
+        <input id="torchEnabled" type="checkbox" />
+      </label>
+      <p id="torchStatus" class="drawer-note hidden"></p>
+      <button id="stopCameraButton" type="button" class="secondary drawer-full-button" disabled>⏹ Stop camera</button>
+    </section>
+
+    <div id="imageToolbar" class="toolbar hidden">
+      <p class="drawer-note">A mode for testing the detection algorithm on a still photo (useful when tuning the sliders below).</p>
+      <label class="upload-button" for="imageInput">Choose a photo</label>
+      <input id="imageInput" type="file" accept="image/*" />
+      <button id="sampleButton" type="button" class="secondary">Reset to sample photo</button>
+      <span id="filename">prototype-red-blocks-sample.png</span>
+    </div>
+
+    <section class="controls">
+      <div class="section-title">
+        <h2>Detection tuning</h2>
+        <button id="resetButton" type="button" class="text-button">Reset to defaults</button>
+      </div>
+      <label>
+        <span>Red sensitivity <output id="redOutput">25</output></span>
+        <input id="redStrength" type="range" min="0" max="45" value="25" />
+      </label>
+      <label>
+        <span>Minimum size <output id="areaOutput">0.020%</output></span>
+        <input id="minArea" type="range" min="5" max="100" value="20" />
+      </label>
+      <label>
+        <span>Bridge strength <output id="bridgeOutput">2</output></span>
+        <input id="bridge" type="range" min="0" max="5" value="2" />
+      </label>
+      <label class="switch-row">
+        <span>Use yellow marker (tape)</span>
+        <input id="useMarkers" type="checkbox" checked />
+      </label>
+    </section>
+
+    <section class="controls">
+      <div class="section-title">
+        <h2>Number block settings</h2>
+      </div>
+      <label class="switch-row">
+        <span>Only look at the number zone (only if its position is fixed)</span>
+        <input id="cardZoneEnabled" type="checkbox" />
+      </label>
+      <label>
+        <span>Block contrast adjustment <output id="cardContrastOutput">0</output></span>
+        <input id="cardContrast" type="range" min="-40" max="40" step="5" value="0" />
+      </label>
+      <label class="switch-row">
+        <span>Debug view (color-coded overlay + tap the video to check a pixel)</span>
+        <input id="debugMode" type="checkbox" />
+      </label>
+    </section>
+
+    <section class="legend">
+      <h2>Legend</h2>
+      <p><i class="box good"></i> Detected red block</p>
+      <p><i class="box card"></i> Detected number block</p>
+      <p><i class="dot"></i> Recognized center point</p>
+      <p>The ring shows "how close to locked in", and the character shows the current state.</p>
+      <p>Debug view colors: <b style="color:#00e278">green</b> = classified as red block / <b style="color:#ffaa00">orange</b> = classified as yellow / <b style="color:#3b82f6">blue</b> = candidate black sticker</p>
+    </section>
+
+    <p class="drawer-footer">Success criteria: the photo mode correctly counts red blocks; the live camera mode reliably locks in the equation and the number-block answer.</p>
+    <p class="drawer-footer" id="buildStamp">Build: 2026-09-09-27</p>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="./digit-model.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
